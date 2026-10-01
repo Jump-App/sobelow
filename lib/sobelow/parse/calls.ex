@@ -17,6 +17,78 @@ defmodule Sobelow.Parse.Calls do
     {vars ++ pipevars, params, {fun_name, line_no}}
   end
 
+  # The selector receives a call with its piped argument inserted and returns
+  # {:ok, destination_ast} or :error. Keep the original call for source metadata.
+  def get_selected_fun_vars_and_meta(fun, selector) do
+    {params, declaration} = get_fun_declaration(fun)
+
+    {_, findings} =
+      Macro.prewalk(fun, [], fn node, acc -> selected_call(node, acc, selector) end)
+
+    {Enum.reverse(findings), params, declaration}
+  end
+
+  defp selected_call({:|>, _, [value, {name, meta, args} = call]}, acc, selector)
+       when is_list(args) do
+    acc = select_destination(call, {name, meta, [value | args]}, acc, selector)
+    # Visit nested calls in the arguments, but not the pipe's right side twice.
+    {{:__block__, [], [value | args]}, acc}
+  end
+
+  defp selected_call({:&, _, [{:/, _, [{name, meta, _}, arity]}]} = node, acc, selector)
+       when is_integer(arity) and arity > 0 do
+    call = create_fun_cap(name, meta, arity)
+    {node, select_destination(call, call, acc, selector)}
+  end
+
+  defp selected_call(node, acc, selector) do
+    {node, select_destination(node, node, acc, selector)}
+  end
+
+  defp select_destination(source, call, acc, selector) do
+    case selector.(call) do
+      {:ok, destination} ->
+        case destination_vars(destination) do
+          [] -> acc
+          vars -> [{source, vars} | acc]
+        end
+
+      :error ->
+        acc
+    end
+  end
+
+  defp destination_vars(destination) do
+    if Macro.quoted_literal?(destination) do
+      []
+    else
+      {_, vars} = Macro.prewalk(destination, [], &destination_var/2)
+
+      case Enum.reverse(vars) |> Enum.uniq() do
+        [] -> [Macro.to_string(destination)]
+        vars -> vars
+      end
+    end
+  end
+
+  defp destination_var({{:., _, [{:conn, _, nil}, :params]}, _, []}, acc),
+    do: {nil, ["conn.params" | acc]}
+
+  # Bitstring type annotations (including interpolation's :binary) are not variables.
+  defp destination_var({:"::", _, [value, _type]}, acc),
+    do: {{:__block__, [], [value]}, acc}
+
+  defp destination_var({:@, _, [{name, _, _}]}, acc),
+    do: {nil, ["@#{name}" | acc]}
+
+  defp destination_var({:&, _, [index]} = node, acc) when is_integer(index),
+    do: {nil, [Macro.to_string(node) | acc]}
+
+  defp destination_var({name, _, context}, acc) when is_atom(name) and is_atom(context),
+    do: {nil, [name | acc]}
+
+  defp destination_var(node, acc), do: {node, acc}
+
   def get_erlang_fun_vars_and_meta(fun, idx, type, module) do
     {params, {fun_name, line_no}} = get_fun_declaration(fun)
 

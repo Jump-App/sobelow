@@ -24,6 +24,8 @@ security issues:
 * Denial of Service
 * Directory traversal
 * Unsafe serialization
+* Server-side request forgery
+* Open redirects
 
 Potential vulnerabilities are flagged in different colors
 according to confidence in their insecurity. High confidence is

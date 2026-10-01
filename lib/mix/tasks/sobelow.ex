@@ -79,10 +79,13 @@ defmodule Mix.Tasks.Sobelow do
   * Traversal.FileModule
   * Traversal.SendDownload
   * Misc
+  * Misc.OpenRedirect
   * Misc.BinToTerm
   * Misc.FilePath
   * RCE.EEx
   * RCE.CodeModule
+  * SSRF
+  * SSRF.HTTPClient
   * CI
   * CI.System
   * CI.OS

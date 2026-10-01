@@ -35,6 +35,7 @@ defmodule Sobelow.Parse do
 
   # Bare, qualified, captured and piped function calls.
   defdelegate get_fun_vars_and_meta(fun, idx, type, module), to: Calls
+  defdelegate get_selected_fun_vars_and_meta(fun, selector), to: Calls
   defdelegate get_erlang_fun_vars_and_meta(fun, idx, type, module), to: Calls
   defdelegate get_erlang_funs_from_pipe(fun, type, module), to: Calls
   defdelegate get_erlang_funs_of_type(ast, type), to: Calls

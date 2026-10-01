@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+  * Added `SSRF.HTTPClient` for dynamic HTTPoison, Req, Finch, Tesla and Mint destinations.
+  * Added `Misc.OpenRedirect` for dynamic external redirects and Location headers.
+    Existing finding types, source locations and fingerprints are unchanged.
+
 ## v0.16.0
 
   * Bug fixes

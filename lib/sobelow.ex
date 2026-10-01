@@ -12,6 +12,7 @@ defmodule Sobelow do
     Sobelow.Misc,
     Sobelow.Config,
     Sobelow.CI,
+    Sobelow.SSRF,
     Sobelow.DOS,
     Sobelow.Vuln
   ]
@@ -186,6 +187,7 @@ defmodule Sobelow do
       "SQL.Stream" -> Sobelow.SQL.Stream
       "Misc" -> Sobelow.Misc
       "Misc.BinToTerm" -> Sobelow.Misc.BinToTerm
+      "Misc.OpenRedirect" -> Sobelow.Misc.OpenRedirect
       "Misc.FilePath" -> Sobelow.Misc.FilePath
       "RCE" -> Sobelow.RCE
       "RCE.EEx" -> Sobelow.RCE.EEx
@@ -212,6 +214,8 @@ defmodule Sobelow do
       "Traversal.SendFile" -> Sobelow.Traversal.SendFile
       "Traversal.FileModule" -> Sobelow.Traversal.FileModule
       "Traversal.SendDownload" -> Sobelow.Traversal.SendDownload
+      "SSRF" -> Sobelow.SSRF
+      "SSRF.HTTPClient" -> Sobelow.SSRF.HTTPClient
       "CI" -> Sobelow.CI
       "CI.System" -> Sobelow.CI.System
       "CI.OS" -> Sobelow.CI.OS

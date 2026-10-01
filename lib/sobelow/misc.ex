@@ -11,13 +11,14 @@ defmodule Sobelow.Misc do
   following commands to find out more:
 
             $ mix sobelow -d Misc.BinToTerm
+            $ mix sobelow -d Misc.OpenRedirect
 
   Miscellaneous checks of all types can be ignored with the
   following command:
 
       $ mix sobelow -i Misc
   """
-  @submodules [Sobelow.Misc.BinToTerm]
+  @submodules [Sobelow.Misc.BinToTerm, Sobelow.Misc.OpenRedirect]
   use Sobelow.FindingType
 
   def get_vulns(fun, meta_file, _web_root, skip_mods \\ []) do
