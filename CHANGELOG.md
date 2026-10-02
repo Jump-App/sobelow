@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+  * Added `Config.TLSVerify` to report disabled TLS certificate verification
+    in scanned source and production configuration.
+
 ## v0.16.0
 
   * Bug fixes
