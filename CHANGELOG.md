@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+  * Added `Config.DebugErrors` for production endpoint debug settings and
+    unguarded Plug.Debugger use.
+
 ## v0.16.0
 
   * Bug fixes

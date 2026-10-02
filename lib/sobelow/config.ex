@@ -21,6 +21,7 @@ defmodule Sobelow.Config do
             $ mix sobelow -d Config.Secrets
             $ mix sobelow -d Config.HTTPS
             $ mix sobelow -d Config.HSTS
+            $ mix sobelow -d Config.DebugErrors
 
   Configuration checks of all types can be ignored with the
   following command:
@@ -43,7 +44,8 @@ defmodule Sobelow.Config do
     Sobelow.Config.Secrets,
     Sobelow.Config.HTTPS,
     Sobelow.Config.HSTS,
-    Sobelow.Config.CSWH
+    Sobelow.Config.CSWH,
+    Sobelow.Config.DebugErrors
   ]
 
   use Sobelow.FindingType
@@ -83,6 +85,9 @@ defmodule Sobelow.Config do
           Enum.each(router, fn path ->
             apply(mod, :run, [relative_path(path, root)])
           end)
+
+        mod == Sobelow.Config.DebugErrors ->
+          mod.run(dir_path, configs, endpoints, router)
 
         mod in [CSWH] ->
           Enum.each(endpoints, fn path ->

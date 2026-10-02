@@ -27,7 +27,10 @@ defmodule Sobelow.Parse.Source do
         ast(filepath)
 
       {:error, reason} ->
-        unreadable_source(filepath, reason)
+        # Cache the failure too: later checks may request the same source AST.
+        Sobelow.Scan.fetch({:ast, Path.expand(filepath), Sobelow.get_env(:skip)}, fn ->
+          unreadable_source(filepath, reason)
+        end)
     end
   end
 
