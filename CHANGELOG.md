@@ -5,6 +5,8 @@
   * Enhancements
     * Add `DOS.DecodeAtoms` for dynamic input decoded with atom-creating options
       in Jason, Poison, and YamlElixir string readers.
+    * Add `Config.TLSVerify` to report disabled TLS certificate verification
+      in scanned source and production configuration.
 
   * Bug fixes
     * Lockfile dependency advisories now read lockfiles in the format Mix
