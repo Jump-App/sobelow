@@ -198,7 +198,9 @@ defmodule Sobelow.Lexical do
     if Enum.all?(signatures, fn
          {name, arity} -> is_atom(name) and is_integer(arity) and arity >= 0
          _ -> false
-       end), do: {kind, signatures}, else: {:unknown, []}
+       end),
+       do: {kind, signatures},
+       else: {:unknown, []}
   end
 
   defp selection(_kind, _signatures), do: {:unknown, []}
