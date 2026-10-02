@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+  * Enhancements
+    * Add `DOS.DecodeAtoms` for dynamic input decoded with atom-creating options
+      in Jason, Poison, and YamlElixir string readers.
+
   * Bug fixes
     * Lockfile dependency advisories now read lockfiles in the format Mix
       writes. Mix's `"plug": {...}` keys parse as atoms, so the lookup never
