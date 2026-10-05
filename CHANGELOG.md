@@ -15,6 +15,11 @@
       medium confidence instead of high, changing `--exit high` behavior.
       It also reports Plug's non-executable decoder without proven `:safe`.
       Existing finding IDs, source locations, and skip fingerprints are preserved.
+    * Add `--only` to run a chosen set of checks or categories, e.g.
+      `mix sobelow --only XSS.Raw,SQL`. It takes the same names as `--ignore`,
+      which still applies on top. Unknown names fail the run instead of
+      scanning nothing. `.sobelow-conf` accepts `only:` and `--save-config`
+      records it.
 
   * Bug fixes
     * Lockfile dependency advisories now read lockfiles in the format Mix
