@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+  * Enhancements
+    * Add `--only` to run a chosen set of checks or categories, e.g.
+      `mix sobelow --only XSS.Raw,SQL`. It takes the same names as `--ignore`,
+      which still applies on top. Unknown names fail the run instead of
+      scanning nothing. `.sobelow-conf` accepts `only:` and `--save-config`
+      records it.
+
   * Bug fixes
     * Lockfile dependency advisories now read lockfiles in the format Mix
       writes. Mix's `"plug": {...}` keys parse as atoms, so the lookup never
