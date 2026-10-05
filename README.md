@@ -207,6 +207,19 @@ The `.sobelow-conf` file is automatically used if detected. CLI switches will
 take precedence over options in the config file. You can also specify
 `--no-config` to prevent any config file settings being used if needed.
 
+### Custom HTTP wrappers
+
+Register custom SSRF sinks in `.sobelow-conf`:
+
+```elixir
+[
+  ssrf_sinks: [
+    [module: "MyApp.HTTP", function: "get", arity: 2, url_arg: 0],
+    [module: "MyApp.HTTP", function: "request", arity: 3, url_arg: 1]
+  ]
+]
+```
+
 ## False Positives
 Sobelow favors over-reporting versus under-reporting. As such,
 you may find a number of false positives in a typical scan.

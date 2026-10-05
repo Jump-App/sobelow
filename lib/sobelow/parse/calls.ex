@@ -18,7 +18,8 @@ defmodule Sobelow.Parse.Calls do
   end
 
   # The selector receives a call with its piped argument inserted and returns
-  # {:ok, destination_ast} or :error. Keep the original call for source metadata.
+  # {:ok, destination_ast} or :error. A two-argument selector also receives the
+  # original call for lexical lookup. Keep that call for source metadata.
   def get_selected_fun_vars_and_meta(fun, selector) do
     {params, declaration} = get_fun_declaration(fun)
 
@@ -46,7 +47,9 @@ defmodule Sobelow.Parse.Calls do
   end
 
   defp select_destination(source, call, acc, selector) do
-    case selector.(call) do
+    selected = if is_function(selector, 2), do: selector.(call, source), else: selector.(call)
+
+    case selected do
       {:ok, destination} ->
         case destination_vars(destination) do
           [] -> acc

@@ -111,6 +111,7 @@ defmodule Sobelow do
       router: get_env(:router),
       skip: get_env(:skip),
       summary: get_env(:summary),
+      ssrf_sinks: get_env(:ssrf_sinks) || [],
       threshold: get_env(:threshold),
       verbose: get_env(:verbose)
     ]

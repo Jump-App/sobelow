@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Sobelow do
   use Mix.Task
+  alias Sobelow.SSRF.CustomSinks
 
   @moduledoc """
   Sobelow is a static analysis tool for discovering
@@ -185,6 +186,7 @@ defmodule Mix.Tasks.Sobelow do
       set_env(:verbose, with_code)
     end
 
+    set_env(:ssrf_sinks, Keyword.get(opts, :ssrf_sinks, []))
     set_env(:root, root)
     set_env(:details, details)
     set_env(:private, private)
@@ -249,6 +251,13 @@ defmodule Mix.Tasks.Sobelow do
   end
 
   defp validate_scan_options!(opts) do
+    unless CustomSinks.valid?(Keyword.get(opts, :ssrf_sinks, [])) do
+      fail(
+        "Invalid ssrf_sinks: expected a list of entries with module and function strings, " <>
+          "arity (1..255), and zero-based url_arg smaller than arity."
+      )
+    end
+
     validate_choice!(opts, :exit, [false, nil, :low, :medium, :high], ["low", "medium", "high"])
     validate_choice!(opts, :threshold, [:low, :medium, :high], ["low", "medium", "high"])
 

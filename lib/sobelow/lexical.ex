@@ -111,6 +111,32 @@ defmodule Sobelow.Lexical do
   defp possible_import?({:macros, _}, _signature), do: true
   defp possible_import?(selection, signature), do: imported?(selection, signature)
 
+  # Match configured module names without creating atoms from configuration.
+  def named_call?(node, module, arity) do
+    case resolution(node) do
+      %{module: segments} when is_list(segments) ->
+        Enum.join(segments, ".") == module
+
+      %{imports: imports, local_functions: locals} ->
+        {name, _, _} = node
+        signature = {name, arity}
+
+        signature not in locals and
+          Enum.any?(imports, fn {segments, selection} ->
+            Enum.join(segments, ".") == module and imported?(selection, signature)
+          end)
+
+      _ ->
+        case node do
+          {{:., _, [{:__aliases__, _, segments}, _]}, _, _} ->
+            segments |> Enum.join(".") |> String.trim_leading("Elixir.") == module
+
+          _ ->
+            false
+        end
+    end
+  end
+
   defp resolution(node) do
     context = Process.get(@context_key) || %{}
     Map.get(context, node_key(node)) || Map.get(context, node)
@@ -198,7 +224,9 @@ defmodule Sobelow.Lexical do
     if Enum.all?(signatures, fn
          {name, arity} -> is_atom(name) and is_integer(arity) and arity >= 0
          _ -> false
-       end), do: {kind, signatures}, else: {:unknown, []}
+       end),
+       do: {kind, signatures},
+       else: {:unknown, []}
   end
 
   defp selection(_kind, _signatures), do: {:unknown, []}

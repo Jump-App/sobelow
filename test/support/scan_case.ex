@@ -37,6 +37,7 @@ defmodule Sobelow.ScanCase do
     skip: false,
     strict: false,
     summary: false,
+    ssrf_sinks: [],
     threshold: :low,
     verbose: false,
     version: false

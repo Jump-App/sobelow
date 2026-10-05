@@ -17,8 +17,9 @@ defmodule Sobelow.SSRF.HTTPClient do
   Client calls are recognized when the client is a Tesla.Client struct, a
   `client()` or `*_client()` call, a variable named `client` or `*_client`, or
   the second argument is visibly a URL. Other ambiguous calls use the first
-  argument as the URL. Renamed aliases, custom client wrappers, destinations
-  stored in request structs, module attributes and Req base_url configuration
+  argument as the URL. Custom wrappers can be registered through `ssrf_sinks`
+  in `.sobelow-conf`. Renamed aliases of built-in clients, destinations stored
+  in request structs, module attributes and Req base_url configuration
   are not resolved.
   Opaque Req and Tesla options are reported conservatively; options or request
   objects built elsewhere may produce false positives.
@@ -65,6 +66,7 @@ defmodule Sobelow.SSRF.HTTPClient do
   @mint_modules [[:Mint, :HTTP], [:Mint, :HTTP1], [:Mint, :HTTP2]]
 
   use Sobelow.Finding
+  alias Sobelow.SSRF.CustomSinks
 
   def run(fun, meta_file) do
     confidence = if !meta_file.controller?, do: :low
@@ -75,7 +77,16 @@ defmodule Sobelow.SSRF.HTTPClient do
   end
 
   @doc false
-  def parse_def(fun), do: Parse.get_selected_fun_vars_and_meta(fun, &destination/1)
+  def parse_def(fun) do
+    sinks = Sobelow.get_env(:ssrf_sinks) || []
+
+    Parse.get_selected_fun_vars_and_meta(fun, fn call, source ->
+      case destination(call) do
+        :error -> CustomSinks.destination(call, source, sinks)
+        result -> result
+      end
+    end)
+  end
 
   # HTTPoison.get(url, headers \\ [], options \\ []), etc.: URL at index 0.
   defp destination({{:., _, [{:__aliases__, _, [:HTTPoison]}, verb]}, _, [url | _]})
