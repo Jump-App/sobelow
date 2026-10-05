@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+  * Enhancements
+    * `Misc.BinToTerm` reports Erlang calls with explicit `:safe` options at
+      medium confidence instead of high, changing `--exit high` behavior.
+      It also reports Plug's non-executable decoder without proven `:safe`.
+      Existing finding IDs, source locations, and skip fingerprints are preserved.
+
   * Bug fixes
     * Lockfile dependency advisories now read lockfiles in the format Mix
       writes. Mix's `"plug": {...}` keys parse as atoms, so the lookup never
