@@ -62,8 +62,12 @@ defmodule Sobelow.DOS.Consult do
 
   defp calls(fun, name, arity, index, piped) do
     {calls, _, _} = Parse.get_erlang_fun_vars_and_meta(fun, index, name, :file)
+    variables_by_call = Map.new(calls)
 
-    Enum.flat_map(calls, fn {{_, _, args} = call, variables} ->
+    # Select calls before variable extraction can discard legacy charlist interpolation.
+    fun
+    |> Parse.get_erlang_aliased_funs_of_type(name, :file)
+    |> Enum.flat_map(fn {_, _, args} = call ->
       args = if Map.has_key?(piped, call), do: [Map.fetch!(piped, call) | args], else: args
 
       if length(args) == arity do
@@ -72,7 +76,7 @@ defmodule Sobelow.DOS.Consult do
 
         variables =
           if normalized == argument,
-            do: variables,
+            do: Map.get(variables_by_call, call, []),
             else: Parse.extract_opts({:argument, [], [normalized]}, 0)
 
         case List.flatten(List.wrap(variables)) do
@@ -90,6 +94,9 @@ defmodule Sobelow.DOS.Consult do
     Macro.prewalk(ast, fn
       {sigil, _, [{:<<>>, _, _} = contents, []]} when sigil in [:sigil_c, :sigil_C] ->
         contents
+
+      {{:., _, [List, :to_charlist]}, meta, [contents]} when is_list(contents) ->
+        {:<<>>, meta, contents}
 
       node ->
         node

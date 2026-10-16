@@ -33,8 +33,28 @@ defmodule SobelowTest.DOS.ConsultTest do
   end
 
   for call <- [
+        ~S|:file.consult('#{file}/settings.config')|,
+        ~S"'#{file}/settings.config' |> :file.consult()",
+        ~S|:file.path_consult(['config'], '#{file}/settings.config')|,
+        ~S|:file.path_consult(['#{file}/config'], 'settings.config')|,
+        ~S"['#{file}/config'] |> :file.path_consult('settings.config')"
+      ] do
+    test "tracks interpolation and preserves the original call in #{call}" do
+      ast = Code.string_to_quoted!("def read(file), do: #{unquote(call)}")
+      original_calls = Sobelow.Parse.get_erlang_aliased_funs_of_type(ast, :consult, :file)
+
+      original_calls =
+        original_calls ++ Sobelow.Parse.get_erlang_aliased_funs_of_type(ast, :path_consult, :file)
+
+      assert {[{call, [:file]}], [:file], {:read, 1}} = Consult.parse_def(ast)
+      assert call in original_calls
+    end
+  end
+
+  for call <- [
         ":file.consult(\"settings.config\")",
         ":file.consult('settings.config')",
+        "'settings.config' |> :file.consult()",
         ":file.path_consult(['config'], 'settings.config')",
         ":file.path_consult(paths, \"/etc/settings.config\")",
         ":file.path_consult(paths, '/etc/settings.config')",

@@ -47,4 +47,23 @@ defmodule SobelowTest.E2E.ConsultTest do
     [run] = Jason.decode!(output)["runs"]
     assert Enum.count(run["results"], &(&1["ruleId"] == "SBLW037")) == 1
   end
+
+  test "reports interpolated single-quoted charlists with parameter confidence" do
+    temp_fixture_file("basic", "lib/basic_web/controllers/consult_controller.ex", ~S'''
+    defmodule BasicWeb.ConsultController do
+      use BasicWeb, :controller
+      def index(conn, %{"file" => file}) do
+        :file.consult('#{file}/settings.config')
+        '#{file}/settings.config' |> :file.consult()
+        :file.path_consult(['config'], '#{file}/settings.config')
+        :file.path_consult(['#{file}/config'], 'settings.config')
+        ['#{file}/config'] |> :file.path_consult('settings.config')
+      end
+    end
+    ''')
+
+    found = scan("basic") |> findings_for("DOS.Consult")
+    assert Enum.sort(Enum.map(found, & &1["line"])) == [4, 5, 6, 7, 8]
+    assert Enum.all?(found, &(&1["confidence"] == "medium"))
+  end
 end
