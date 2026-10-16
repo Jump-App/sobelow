@@ -24,7 +24,14 @@ defmodule Sobelow.Config.TLSVerify do
   use Sobelow.Finding
 
   def run(dir_path, configs, files) do
-    paths = Enum.map(configs, &Path.join(dir_path, &1)) ++ Enum.map(files, & &1.file_path)
+    # Discovery already warned about unreadable source files. Reuse its cached
+    # read result so this check does not report the same failure again.
+    source_paths =
+      for %{file_path: path} <- files,
+          match?({:ok, _}, Sobelow.Scan.source(path)),
+          do: path
+
+    paths = Enum.map(configs, &Path.join(dir_path, &1)) ++ source_paths
 
     Enum.each(paths, fn path ->
       path

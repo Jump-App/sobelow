@@ -26,8 +26,8 @@ defmodule Sobelow.Parse.Source do
 
         ast(filepath)
 
-      {:error, _reason} ->
-        ast(filepath)
+      {:error, reason} ->
+        unreadable_source(filepath, reason)
     end
   end
 
