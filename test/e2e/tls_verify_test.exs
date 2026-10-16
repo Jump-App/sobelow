@@ -51,4 +51,33 @@ defmodule SobelowTest.E2E.TLSVerifyTest do
     [run] = Jason.decode!(output)["runs"]
     assert Enum.any?(run["results"], &(&1["ruleId"] == "SBLW034"))
   end
+
+  for skip <- ["Config.TLSVerify", "Config"] do
+    test "honors #{skip} function comments only with --skip" do
+      temp_fixture_file("basic", "lib/basic_web/tls_client.ex", """
+      defmodule BasicWeb.TLSClient do
+        @tls [ssl: [verify: :verify_none]]
+
+        # sobelow_skip ["#{unquote(skip)}"]
+        def skipped(url), do: HTTPoison.get(url, [], ssl: [verify: :verify_none])
+
+        # sobelow_skip ["Traversal"]
+        def reported(url), do: HTTPoison.get(url, [], ssl: [verify: :verify_none])
+
+        # sobelow_skip ["#{unquote(skip)}"]
+        defp private_skipped(url), do: :hackney.get(url, [], <<>>, [:insecure])
+
+        defmodule Nested do
+          def reported(url), do: :hackney.get(url, [], <<>>, [:insecure])
+        end
+      end
+      """)
+
+      findings = scan("basic", skip: true) |> findings_for("Config.TLSVerify")
+      assert Enum.sort(Enum.map(findings, & &1["line"])) == [2, 8, 14]
+
+      findings = scan("basic") |> findings_for("Config.TLSVerify")
+      assert Enum.sort(Enum.map(findings, & &1["line"])) == [2, 5, 8, 11, 14]
+    end
+  end
 end

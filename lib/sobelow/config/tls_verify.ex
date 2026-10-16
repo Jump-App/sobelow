@@ -24,40 +24,57 @@ defmodule Sobelow.Config.TLSVerify do
   use Sobelow.Finding
 
   def run(dir_path, configs, files) do
+    Enum.each(configs, &scan_file(Path.join(dir_path, &1)))
+
     # Discovery already warned about unreadable source files. Reuse its cached
     # read result so this check does not report the same failure again.
-    source_paths =
-      for %{file_path: path} <- files,
-          match?({:ok, _}, Sobelow.Scan.source(path)),
-          do: path
-
-    paths = Enum.map(configs, &Path.join(dir_path, &1)) ++ source_paths
-
-    Enum.each(paths, fn path ->
-      path
-      |> Parse.ast()
-      |> insecure_calls()
-      |> Enum.each(&add_finding(path, &1))
+    Enum.each(files, fn file ->
+      if match?({:ok, _}, Sobelow.Scan.source(file.file_path)) do
+        scan_file(file.file_path, skipped_functions(file))
+      end
     end)
   end
 
-  @doc false
-  def insecure_calls(ast) do
-    {_, calls} =
-      Macro.prewalk(ast, [], fn
-        {name, _, args} = call, acc when is_list(args) and name != :%{} ->
-          if insecure_options?(args, hackney_call?(name), direct_tls_options?(name)) do
-            {call, [call | acc]}
-          else
-            {call, acc}
-          end
+  defp scan_file(path, skipped_functions \\ MapSet.new()) do
+    path
+    |> Parse.ast()
+    |> insecure_calls(skipped_functions)
+    |> Enum.each(&add_finding(path, &1))
+  end
 
-        node, acc ->
-          {node, acc}
+  defp skipped_functions(file) do
+    for context <- file.scan_contexts,
+        {{fun, skips}, _lexical} <- context.functions,
+        Sobelow.get_env(:skip),
+        Enum.any?(skips, &(Sobelow.get_mod(&1) in [__MODULE__, Sobelow.Config])),
+        into: MapSet.new(),
+        do: fun
+  end
+
+  @doc false
+  def insecure_calls(ast), do: insecure_calls(ast, MapSet.new())
+
+  defp insecure_calls(ast, skipped_functions) do
+    {_, calls} =
+      Macro.prewalk(ast, [], fn node, acc ->
+        if MapSet.member?(skipped_functions, node) do
+          {{}, acc}
+        else
+          collect_insecure_call(node, acc)
+        end
       end)
 
     Enum.reverse(calls)
   end
+
+  defp collect_insecure_call({name, _, args} = call, acc)
+       when is_list(args) and name != :%{} do
+    if insecure_options?(args, hackney_call?(name), direct_tls_options?(name)),
+      do: {call, [call | acc]},
+      else: {call, acc}
+  end
+
+  defp collect_insecure_call(node, acc), do: {node, acc}
 
   defp insecure_options?(options, hackney?, tls?) when is_list(options) do
     Enum.any?(options, &insecure_option?(&1, hackney?, tls?))
