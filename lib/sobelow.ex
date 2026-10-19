@@ -13,6 +13,7 @@ defmodule Sobelow do
     Sobelow.Config,
     Sobelow.CI,
     Sobelow.DOS,
+    Sobelow.Crypto,
     Sobelow.Vuln
   ]
 
@@ -216,6 +217,10 @@ defmodule Sobelow do
       "CI" -> Sobelow.CI
       "CI.System" -> Sobelow.CI.System
       "CI.OS" -> Sobelow.CI.OS
+      "Crypto" -> Sobelow.Crypto
+      "Crypto.WeakHash" -> Sobelow.Crypto.WeakHash
+      "Crypto.WeakCipher" -> Sobelow.Crypto.WeakCipher
+      "Crypto.WeakRandom" -> Sobelow.Crypto.WeakRandom
       "DOS" -> Sobelow.DOS
       "DOS.StringToAtom" -> Sobelow.DOS.StringToAtom
       "DOS.ListToAtom" -> Sobelow.DOS.ListToAtom

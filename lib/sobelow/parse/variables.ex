@@ -37,6 +37,57 @@ defmodule Sobelow.Parse.Variables do
     :|
   ]
 
+  # Match identifier words, not arbitrary string contents or substrings.
+  def named_value?(ast, names) do
+    {_, found?} =
+      Macro.prewalk(ast, false, fn node, found? ->
+        name =
+          case node do
+            {name, _, context} when is_atom(name) and is_atom(context) -> name
+            {{:., _, [Access, :get]}, _, [_, key]} -> key
+            {{:., _, [_, field]}, _, []} -> field
+            _ -> nil
+          end
+
+        {node, found? or identifier_matches?(name, names)}
+      end)
+
+    found?
+  end
+
+  def identifier_matches?(name, names) when is_atom(name) or is_binary(name) do
+    name
+    |> to_string()
+    |> Macro.underscore()
+    |> String.split(~r/[^a-z0-9]+/)
+    |> Enum.any?(&(&1 in names))
+  end
+
+  def identifier_matches?(_, _), do: false
+
+  # Only the RHS of a named binding gets that binding's context.
+  def named_context_nodes(ast, names) do
+    {_, nodes} =
+      Macro.prewalk(ast, MapSet.new(), fn
+        {:=, _, [binding, value]} = node, nodes ->
+          {node, if(named_value?(binding, names), do: collect_nodes(value, nodes), else: nodes)}
+
+        {key, value} = node, nodes when is_atom(key) or is_binary(key) ->
+          {node,
+           if(identifier_matches?(key, names), do: collect_nodes(value, nodes), else: nodes)}
+
+        node, nodes ->
+          {node, nodes}
+      end)
+
+    nodes
+  end
+
+  defp collect_nodes(ast, nodes) do
+    {_, nodes} = Macro.prewalk(ast, nodes, fn node, nodes -> {node, MapSet.put(nodes, node)} end)
+    nodes
+  end
+
   def normalize_finding({finding, opts}) when is_list(opts) do
     {finding, List.flatten(opts)}
   end

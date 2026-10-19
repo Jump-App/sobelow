@@ -87,6 +87,10 @@ defmodule Mix.Tasks.Sobelow do
   * CI
   * CI.System
   * CI.OS
+  * Crypto
+  * Crypto.WeakHash
+  * Crypto.WeakCipher
+  * Crypto.WeakRandom
   * DOS
   * DOS.StringToAtom
   * DOS.ListToAtom

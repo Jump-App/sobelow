@@ -4,6 +4,43 @@ defmodule Sobelow.Parse.Calls do
   import Sobelow.Parse.Variables,
     only: [extract_opts: 2, get_fun_declaration: 1, get_pipe_val: 2, normalize_finding: 1]
 
+  # Return original finding nodes alongside effective arguments (including pipes).
+  # Unlike variable extraction, this also retains calls with entirely literal data.
+  def calls_with_args(ast, specifications) do
+    pipes = Map.new(get_pipe_funs(ast), fn {:|>, _, [value, call]} -> {call, value} end)
+    captures = original_captures(ast)
+
+    Enum.flat_map(specifications, fn {module, name, arities} ->
+      calls =
+        if is_atom(module),
+          do: get_erlang_aliased_funs_of_type(ast, name, module),
+          else: get_funs(ast, name, module)
+
+      calls
+      |> Enum.uniq()
+      |> Enum.flat_map(fn {_, _, args} = call ->
+        args = if Map.has_key?(pipes, call), do: [Map.fetch!(pipes, call) | args], else: args
+
+        if is_list(args) and length(args) in arities,
+          do: [{Map.get(captures, call, call), name, args}],
+          else: []
+      end)
+    end)
+  end
+
+  defp original_captures(ast) do
+    {_, captures} =
+      Macro.prewalk(ast, %{}, fn
+        {:&, _, [{:/, _, [{fun, meta, _}, arity]}]} = node, captures ->
+          {node, Map.put(captures, create_fun_cap(fun, meta, arity), node)}
+
+        node, captures ->
+          {node, captures}
+      end)
+
+    captures
+  end
+
   def get_fun_vars_and_meta(fun, idx, type, module) do
     {params, {fun_name, line_no}} = get_fun_declaration(fun)
 
