@@ -6,8 +6,10 @@ defmodule Sobelow.Parse.Calls do
 
   # Return original finding nodes alongside effective arguments (including pipes).
   # Unlike variable extraction, this also retains calls with entirely literal data.
+  # Every pipe is considered, including chains containing `do` blocks, which
+  # `get_pipe_funs/1` deliberately skips.
   def calls_with_args(ast, specifications) do
-    pipes = Map.new(get_pipe_funs(ast), fn {:|>, _, [value, call]} -> {call, value} end)
+    pipes = Map.new(get_funs_of_type(ast, :|>), fn {:|>, _, [value, call]} -> {call, value} end)
     captures = original_captures(ast)
 
     Enum.flat_map(specifications, fn {module, name, arities} ->

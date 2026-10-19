@@ -129,4 +129,19 @@ defmodule SobelowTest.CryptoTest do
     assert {{:., _, [:crypto, :hash]}, _, [{:data, _, nil}]} = call
     assert Sobelow.Parse.get_fun_line(call) == 1
   end
+
+  test "pipes containing do blocks still supply the piped argument" do
+    assert [{_, _, :context}] =
+             WeakHash.parse_def(
+               ast("data |> Enum.map(fn x -> if x do x end end) |> :erlang.md5()")
+             )
+
+    assert [{_, :medium}] =
+             WeakRandom.parse_def(
+               ast(
+                 "data |> Enum.filter(fn x -> case x do _ -> true end end) |> Enum.random()",
+                 "generate_token"
+               )
+             )
+  end
 end
