@@ -92,6 +92,7 @@ defmodule Mix.Tasks.Sobelow do
   * DOS.ListToAtom
   * DOS.BinToAtom
   * DOS.DecodeAtoms
+  * DOS.Consult
 
   """
   @switches [
