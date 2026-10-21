@@ -3,6 +3,8 @@
 ## Unreleased
 
   * Enhancements
+    * Add the Crypto category with WeakHash and WeakCipher checks for literal
+      algorithm choices.
     * Add `DOS.DecodeAtoms` for dynamic input decoded with atom-creating options
       in Jason, Poison, and YamlElixir string readers.
     * Add `Config.TLSVerify` to report disabled TLS certificate verification
