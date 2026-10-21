@@ -38,23 +38,6 @@ defmodule Sobelow.Parse.Variables do
   ]
 
   # Match identifier words, not arbitrary string contents or substrings.
-  def named_value?(ast, names) do
-    {_, found?} =
-      Macro.prewalk(ast, false, fn node, found? ->
-        name =
-          case node do
-            {name, _, context} when is_atom(name) and is_atom(context) -> name
-            {{:., _, [Access, :get]}, _, [_, key]} -> key
-            {{:., _, [_, field]}, _, []} -> field
-            _ -> nil
-          end
-
-        {node, found? or identifier_matches?(name, names)}
-      end)
-
-    found?
-  end
-
   def identifier_matches?(name, names) when is_atom(name) or is_binary(name) do
     name
     |> to_string()
@@ -65,27 +48,48 @@ defmodule Sobelow.Parse.Variables do
 
   def identifier_matches?(_, _), do: false
 
-  # Only the RHS of a named binding gets that binding's context.
-  def named_context_nodes(ast, names) do
-    {_, nodes} =
+  # The `calls` found within the RHS of a named binding or key; only the RHS
+  # gets that binding's context.
+  def named_context_calls(ast, names, calls) do
+    calls = MapSet.new(calls)
+
+    {_, found} =
       Macro.prewalk(ast, MapSet.new(), fn
-        {:=, _, [binding, value]} = node, nodes ->
-          {node, if(named_value?(binding, names), do: collect_nodes(value, nodes), else: nodes)}
-
-        {key, value} = node, nodes when is_atom(key) or is_binary(key) ->
+        {:=, _, [binding, value]} = node, found ->
           {node,
-           if(identifier_matches?(key, names), do: collect_nodes(value, nodes), else: nodes)}
+           if(named_binding?(binding, names), do: collect(value, calls, found), else: found)}
 
-        node, nodes ->
-          {node, nodes}
+        {key, value} = node, found when is_atom(key) or is_binary(key) ->
+          {node,
+           if(identifier_matches?(key, names), do: collect(value, calls, found), else: found)}
+
+        node, found ->
+          {node, found}
       end)
 
-    nodes
+    found
   end
 
-  defp collect_nodes(ast, nodes) do
-    {_, nodes} = Macro.prewalk(ast, nodes, fn node, nodes -> {node, MapSet.put(nodes, node)} end)
-    nodes
+  defp named_binding?(ast, names) do
+    {_, found?} =
+      Macro.prewalk(ast, false, fn
+        {name, _, context} = node, false when is_atom(name) and is_atom(context) ->
+          {node, identifier_matches?(name, names)}
+
+        node, found? ->
+          {node, found?}
+      end)
+
+    found?
+  end
+
+  defp collect(ast, calls, found) do
+    {_, found} =
+      Macro.prewalk(ast, found, fn node, found ->
+        {node, if(MapSet.member?(calls, node), do: MapSet.put(found, node), else: found)}
+      end)
+
+    found
   end
 
   def normalize_finding({finding, opts}) when is_list(opts) do

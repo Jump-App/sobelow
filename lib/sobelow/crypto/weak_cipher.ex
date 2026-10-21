@@ -31,25 +31,15 @@ defmodule Sobelow.Crypto.WeakCipher do
   use Sobelow.Finding
 
   def run(fun, meta_file) do
-    {params, declaration} = Parse.get_fun_declaration(fun)
-
-    Enum.each(parse_def(fun), fn {call, algorithm, confidence} ->
-      Finding.init(@finding_type, meta_file.filename, confidence)
-      |> Finding.multi_from_def(fun, {[{call, algorithm}], params, declaration})
-      |> Enum.each(&Print.add_finding/1)
-    end)
+    fun |> parse_def() |> Sobelow.Crypto.add_findings(fun, meta_file, @finding_type)
   end
 
   # All supported APIs take the cipher at index 0.
   def parse_def(fun) do
-    fun
-    |> Parse.calls_with_args(@calls)
-    |> Enum.flat_map(fn {call, _, [algorithm | _]} ->
-      case confidence(algorithm) do
-        nil -> []
-        confidence -> [{call, algorithm, confidence}]
-      end
-    end)
+    for {call, _, [algorithm | _]} <- Parse.calls_with_args(fun, @calls),
+        confidence <- [confidence(algorithm)],
+        confidence,
+        do: {call, algorithm, confidence}
   end
 
   defp confidence(algorithm) when is_atom(algorithm) do

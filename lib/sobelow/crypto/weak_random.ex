@@ -34,34 +34,39 @@ defmodule Sobelow.Crypto.WeakRandom do
   use Sobelow.Finding
 
   def run(fun, meta_file) do
-    {params, declaration} = Parse.get_fun_declaration(fun)
-
-    Enum.each(parse_def(fun), fn {call, confidence} ->
-      Finding.init(@finding_type, meta_file.filename, confidence)
-      |> Finding.multi_from_def(fun, {[{call, "randomness"}], params, declaration})
-      |> Enum.each(&Print.add_finding/1)
-    end)
+    fun |> parse_def() |> Sobelow.Crypto.add_findings(fun, meta_file, @finding_type)
   end
 
   # Random generators have varied arities; context concerns their result.
   def parse_def(fun) do
-    {_, {name, _}} = Parse.get_fun_declaration(fun)
-    security_nodes = Parse.named_context_nodes(fun, @security_names)
-    code_nodes = Parse.named_context_nodes(fun, ["code"])
+    calls = for {call, _, _} <- Parse.calls_with_args(fun, @calls), do: call
 
-    fun
-    |> Parse.calls_with_args(@calls)
-    |> Enum.flat_map(fn {call, _, _} ->
-      cond do
-        Parse.identifier_matches?(name, @security_names) or MapSet.member?(security_nodes, call) ->
-          [{call, :medium}]
+    if calls == [] do
+      []
+    else
+      {_, {name, _}} = Parse.get_fun_declaration(fun)
+      security = context_calls(fun, name, @security_names, calls)
+      code = context_calls(fun, name, ["code"], calls)
 
-        Parse.identifier_matches?(name, ["code"]) or MapSet.member?(code_nodes, call) ->
-          [{call, :low}]
+      for call <- calls,
+          confidence <- [confidence(call, security, code)],
+          confidence,
+          do: {call, "randomness", confidence}
+    end
+  end
 
-        true ->
-          []
-      end
-    end)
+  # A matching function name puts every call in context.
+  defp context_calls(fun, name, names, calls) do
+    if Parse.identifier_matches?(name, names),
+      do: MapSet.new(calls),
+      else: Parse.named_context_calls(fun, names, calls)
+  end
+
+  defp confidence(call, security, code) do
+    cond do
+      MapSet.member?(security, call) -> :medium
+      MapSet.member?(code, call) -> :low
+      true -> nil
+    end
   end
 end

@@ -5,15 +5,15 @@ defmodule SobelowTest.CryptoTest do
   defp ast(body, name \\ "run"), do: Code.string_to_quoted!("def #{name}(data), do: (#{body})")
 
   for {source, confidence} <- [
-        {":crypto.hash(:md5, data)", :context},
-        {":crypto.hash(:sha, \"literal\")", :context},
-        {":crypto.hash_init(:md4)", :context},
-        {":crypto.hash(:ripemd160, data)", :context},
-        {":md5 |> :crypto.hash(data)", :context},
-        {":erlang.md5(data)", :context},
-        {"&:erlang.md5/1", :context},
-        {"&:crypto.hash(:md5, &1)", :context},
-        {":crypto.hash(:md5, user.password_hash)", :context},
+        {":crypto.hash(:md5, data)", :low},
+        {":crypto.hash(:sha, \"literal\")", :low},
+        {":crypto.hash_init(:md4)", :low},
+        {":crypto.hash(:ripemd160, data)", :low},
+        {":md5 |> :crypto.hash(data)", :low},
+        {":erlang.md5(data)", :low},
+        {"&:erlang.md5/1", :low},
+        {"&:crypto.hash(:md5, &1)", :low},
+        {":crypto.hash(:md5, user.password_hash)", :low},
         {":crypto.mac(:hmac, :md5, key, data)", :low},
         {":crypto.macN(:hmac, :md5, key, data, 8)", :low},
         {":crypto.mac_init(:hmac, :md5, key)", :low},
@@ -98,13 +98,13 @@ defmodule SobelowTest.CryptoTest do
         "&Enum.random/1"
       ] do
     test "random security function: #{source}" do
-      assert [{_, :medium}] = WeakRandom.parse_def(ast(unquote(source), "generate_token"))
+      assert [{_, _, :medium}] = WeakRandom.parse_def(ast(unquote(source), "generate_token"))
       assert [] = WeakRandom.parse_def(ast(unquote(source), "sample"))
     end
   end
 
   test "random naming applies only to relevant assignments, not neighboring calls" do
-    assert [{_, :medium}] =
+    assert [{_, _, :medium}] =
              WeakRandom.parse_def(
                ast("""
                sample = Enum.random(data)
@@ -112,13 +112,18 @@ defmodule SobelowTest.CryptoTest do
                """)
              )
 
-    assert [{_, :medium}] = WeakRandom.parse_def(ast("%{secret: :rand.bytes(32)}"))
-    assert [{_, :low}] = WeakRandom.parse_def(ast("code = :rand.uniform(100)"))
+    assert [{_, _, :medium}] = WeakRandom.parse_def(ast("%{secret: :rand.bytes(32)}"))
+    assert [{_, _, :low}] = WeakRandom.parse_def(ast("code = :rand.uniform(100)"))
     assert [] = WeakRandom.parse_def(ast("decode = :rand.uniform(100)"))
-    assert [{capture, :medium}] = WeakRandom.parse_def(ast("token = &Enum.random/1"))
+    assert [{capture, _, :medium}] = WeakRandom.parse_def(ast("token = &Enum.random/1"))
     assert {:&, _, _} = capture
     assert [] = WeakRandom.parse_def(ast(":crypto.strong_rand_bytes(32)", "generate_token"))
     assert [] = WeakRandom.parse_def(ast("Other.Enum.random(data)", "generate_token"))
+  end
+
+  test "legacy hash confidence is supplied by the caller; HMAC-MD5 stays low" do
+    assert [{_, :md5, :medium}] = WeakHash.parse_def(ast(":crypto.hash(:md5, data)"), :medium)
+    assert [{_, _, :low}] = WeakHash.parse_def(ast(":crypto.hmac(:md5, key, data)"), :medium)
   end
 
   test "effective pipe arguments retain the original call and location" do
@@ -132,12 +137,12 @@ defmodule SobelowTest.CryptoTest do
   end
 
   test "pipes containing do blocks still supply the piped argument" do
-    assert [{_, _, :context}] =
+    assert [{_, _, :low}] =
              WeakHash.parse_def(
                ast("data |> Enum.map(fn x -> if x do x end end) |> :erlang.md5()")
              )
 
-    assert [{_, :medium}] =
+    assert [{_, _, :medium}] =
              WeakRandom.parse_def(
                ast(
                  "data |> Enum.filter(fn x -> case x do _ -> true end end) |> Enum.random()",

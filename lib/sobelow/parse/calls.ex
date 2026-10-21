@@ -9,24 +9,39 @@ defmodule Sobelow.Parse.Calls do
   # Every pipe is considered, including chains containing `do` blocks, which
   # `get_pipe_funs/1` deliberately skips.
   def calls_with_args(ast, specifications) do
-    pipes = Map.new(get_funs_of_type(ast, :|>), fn {:|>, _, [value, call]} -> {call, value} end)
-    captures = original_captures(ast)
+    calls =
+      Enum.flat_map(specifications, fn {module, name, arities} ->
+        calls =
+          if is_atom(module),
+            do: get_erlang_aliased_funs_of_type(ast, name, module),
+            else: get_funs(ast, name, module)
 
-    Enum.flat_map(specifications, fn {module, name, arities} ->
-      calls =
-        if is_atom(module),
-          do: get_erlang_aliased_funs_of_type(ast, name, module),
-          else: get_funs(ast, name, module)
-
-      calls
-      |> Enum.uniq()
-      |> Enum.flat_map(fn {_, _, args} = call ->
-        args = if Map.has_key?(pipes, call), do: [Map.fetch!(pipes, call) | args], else: args
-
-        if is_list(args) and length(args) in arities,
-          do: [{Map.get(captures, call, call), name, args}],
-          else: []
+        calls |> Enum.uniq() |> Enum.map(&{&1, name, arities})
       end)
+
+    if calls == [], do: [], else: effective_calls(ast, calls)
+  end
+
+  # Pipes and captures are shared by every caller scanning the same function.
+  defp effective_calls(ast, calls) do
+    pipes =
+      Sobelow.FunctionAnalysis.fetch(ast, :pipe_args, fn ->
+        Map.new(get_funs_of_type(ast, :|>), fn {:|>, _, [value, call]} -> {call, value} end)
+      end)
+
+    captures =
+      Sobelow.FunctionAnalysis.fetch(ast, :original_captures, fn -> original_captures(ast) end)
+
+    Enum.flat_map(calls, fn {{_, _, args} = call, name, arities} ->
+      args =
+        case Map.fetch(pipes, call) do
+          {:ok, value} -> [value | args]
+          :error -> args
+        end
+
+      if is_list(args) and length(args) in arities,
+        do: [{Map.get(captures, call, call), name, args}],
+        else: []
     end)
   end
 
