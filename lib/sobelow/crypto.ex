@@ -2,19 +2,17 @@ defmodule Sobelow.Crypto do
   @moduledoc """
   # Cryptography
 
-  Checks algorithm choices and likely security uses of non-cryptographic
-  randomness. These checks do not prove that a cryptographic construction
-  is secure or that a value is secret.
+  Checks literal hash and cipher algorithm choices. These checks do not
+  prove that a cryptographic construction is secure.
 
       $ mix sobelow -d Crypto.WeakHash
       $ mix sobelow -d Crypto.WeakCipher
-      $ mix sobelow -d Crypto.WeakRandom
 
   Ignore the category with:
 
       $ mix sobelow -i Crypto
   """
-  @submodules [Sobelow.Crypto.WeakHash, Sobelow.Crypto.WeakCipher, Sobelow.Crypto.WeakRandom]
+  @submodules [Sobelow.Crypto.WeakHash, Sobelow.Crypto.WeakCipher]
   use Sobelow.FindingType
 
   def get_vulns(fun, meta_file, _web_root, skip_mods \\ []) do

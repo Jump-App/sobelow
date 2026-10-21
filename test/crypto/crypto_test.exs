@@ -1,6 +1,6 @@
 defmodule SobelowTest.CryptoTest do
   use ExUnit.Case, async: true
-  alias Sobelow.Crypto.{WeakCipher, WeakHash, WeakRandom}
+  alias Sobelow.Crypto.{WeakCipher, WeakHash}
 
   defp ast(body, name \\ "run"), do: Code.string_to_quoted!("def #{name}(data), do: (#{body})")
 
@@ -86,41 +86,6 @@ defmodule SobelowTest.CryptoTest do
              )
   end
 
-  for source <- [
-        ":rand.uniform()",
-        ":rand.uniform(100)",
-        ":rand.uniform_s(100, state)",
-        ":rand.bytes(32)",
-        ":random.uniform()",
-        "Enum.random(data)",
-        "data |> Enum.take_random(32)",
-        "Enum.shuffle(data)",
-        "&Enum.random/1"
-      ] do
-    test "random security function: #{source}" do
-      assert [{_, _, :medium}] = WeakRandom.parse_def(ast(unquote(source), "generate_token"))
-      assert [] = WeakRandom.parse_def(ast(unquote(source), "sample"))
-    end
-  end
-
-  test "random naming applies only to relevant assignments, not neighboring calls" do
-    assert [{_, _, :medium}] =
-             WeakRandom.parse_def(
-               ast("""
-               sample = Enum.random(data)
-               token = Enum.random(data)
-               """)
-             )
-
-    assert [{_, _, :medium}] = WeakRandom.parse_def(ast("%{secret: :rand.bytes(32)}"))
-    assert [{_, _, :low}] = WeakRandom.parse_def(ast("code = :rand.uniform(100)"))
-    assert [] = WeakRandom.parse_def(ast("decode = :rand.uniform(100)"))
-    assert [{capture, _, :medium}] = WeakRandom.parse_def(ast("token = &Enum.random/1"))
-    assert {:&, _, _} = capture
-    assert [] = WeakRandom.parse_def(ast(":crypto.strong_rand_bytes(32)", "generate_token"))
-    assert [] = WeakRandom.parse_def(ast("Other.Enum.random(data)", "generate_token"))
-  end
-
   test "legacy hash confidence is supplied by the caller; HMAC-MD5 stays low" do
     assert [{_, :md5, :medium}] = WeakHash.parse_def(ast(":crypto.hash(:md5, data)"), :medium)
     assert [{_, _, :low}] = WeakHash.parse_def(ast(":crypto.hmac(:md5, key, data)"), :medium)
@@ -140,14 +105,6 @@ defmodule SobelowTest.CryptoTest do
     assert [{_, _, :low}] =
              WeakHash.parse_def(
                ast("data |> Enum.map(fn x -> if x do x end end) |> :erlang.md5()")
-             )
-
-    assert [{_, _, :medium}] =
-             WeakRandom.parse_def(
-               ast(
-                 "data |> Enum.filter(fn x -> case x do _ -> true end end) |> Enum.random()",
-                 "generate_token"
-               )
              )
   end
 end

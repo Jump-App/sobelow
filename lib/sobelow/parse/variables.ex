@@ -37,61 +37,6 @@ defmodule Sobelow.Parse.Variables do
     :|
   ]
 
-  # Match identifier words, not arbitrary string contents or substrings.
-  def identifier_matches?(name, names) when is_atom(name) or is_binary(name) do
-    name
-    |> to_string()
-    |> Macro.underscore()
-    |> String.split(~r/[^a-z0-9]+/)
-    |> Enum.any?(&(&1 in names))
-  end
-
-  def identifier_matches?(_, _), do: false
-
-  # The `calls` found within the RHS of a named binding or key; only the RHS
-  # gets that binding's context.
-  def named_context_calls(ast, names, calls) do
-    calls = MapSet.new(calls)
-
-    {_, found} =
-      Macro.prewalk(ast, MapSet.new(), fn
-        {:=, _, [binding, value]} = node, found ->
-          {node,
-           if(named_binding?(binding, names), do: collect(value, calls, found), else: found)}
-
-        {key, value} = node, found when is_atom(key) or is_binary(key) ->
-          {node,
-           if(identifier_matches?(key, names), do: collect(value, calls, found), else: found)}
-
-        node, found ->
-          {node, found}
-      end)
-
-    found
-  end
-
-  defp named_binding?(ast, names) do
-    {_, found?} =
-      Macro.prewalk(ast, false, fn
-        {name, _, context} = node, false when is_atom(name) and is_atom(context) ->
-          {node, identifier_matches?(name, names)}
-
-        node, found? ->
-          {node, found?}
-      end)
-
-    found?
-  end
-
-  defp collect(ast, calls, found) do
-    {_, found} =
-      Macro.prewalk(ast, found, fn node, found ->
-        {node, if(MapSet.member?(calls, node), do: MapSet.put(found, node), else: found)}
-      end)
-
-    found
-  end
-
   def normalize_finding({finding, opts}) when is_list(opts) do
     {finding, List.flatten(opts)}
   end

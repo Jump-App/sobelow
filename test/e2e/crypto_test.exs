@@ -5,14 +5,12 @@ defmodule SobelowTest.E2E.CryptoTest do
     temp_fixture_file("basic", "lib/basic_web/controllers/crypto_controller.ex", """
     defmodule BasicWeb.CryptoController do
       use BasicWeb, :controller
-      alias Enum, as: Choices
       def index(conn, params) do
         :crypto.hash(:md5, "literal")
         :crypto.hash(:sha256, params["password"])
         :crypto.mac(:hmac, :md5, "key", "data")
         :crypto.crypto_one_time(:aes_128_ecb, key, data, true)
         :crypto.crypto_one_time(:aes_128_cbc, key, iv, data, true)
-        token = Choices.random(params)
         conn
       end
       # sobelow_skip ["Crypto"]
@@ -22,10 +20,7 @@ defmodule SobelowTest.E2E.CryptoTest do
 
     temp_fixture_file("basic", "lib/crypto_helper.ex", """
     defmodule CryptoHelper do
-      import Enum, only: [random: 1]
       def checksum(data), do: :crypto.hash(:md5, data)
-      def token(data), do: random(data)
-      def sample(data), do: Enum.random(data)
     end
     """)
 
@@ -40,12 +35,10 @@ defmodule SobelowTest.E2E.CryptoTest do
     assert Enum.frequencies_by(findings_for(report, "Crypto.WeakCipher"), & &1["confidence"]) ==
              %{"high" => 1, "low" => 1}
 
-    assert [_, _] = findings_for(report, "Crypto.WeakRandom")
-
     assert Sobelow.get_mod("Crypto") == Sobelow.Crypto
 
     assert Enum.map(Sobelow.Crypto.finding_modules(), & &1.id()) ==
-             ["SBLW038", "SBLW039", "SBLW040"]
+             ["SBLW038", "SBLW039"]
 
     ids = Enum.map(Sobelow.finding_modules(), & &1.id())
     assert length(ids) == length(Enum.uniq(ids))
@@ -56,7 +49,7 @@ defmodule SobelowTest.E2E.CryptoTest do
     assert [] = scan("basic", ignored: ["Crypto.WeakCipher"]) |> findings_for("Crypto.WeakCipher")
     assert length(scan("basic") |> findings_for("Crypto.WeakHash")) == 4
     assert length(scan("basic", skip: true) |> findings_for("Crypto.WeakHash")) == 3
-    assert [] = scan("basic", threshold: :high) |> findings_for("Crypto.WeakRandom")
+    assert [] = scan("basic", threshold: :high) |> findings_for("Crypto.WeakHash")
 
     for format <- ["txt", "compact", "flycheck", "github"] do
       {output, _} = scan_io("basic", format: format)
@@ -66,7 +59,7 @@ defmodule SobelowTest.E2E.CryptoTest do
     {output, _} = scan_io("basic", format: "sarif", skip: true)
     [run] = Jason.decode!(output)["runs"]
 
-    for id <- ["SBLW038", "SBLW039", "SBLW040"] do
+    for id <- ["SBLW038", "SBLW039"] do
       assert Enum.any?(run["results"], &(&1["ruleId"] == id))
       assert Enum.any?(run["tool"]["driver"]["rules"], &(&1["id"] == id))
     end

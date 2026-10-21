@@ -21,7 +21,7 @@ security issues:
 * SQL injection
 * Command injection
 * Code execution
-* Weak cryptographic algorithms and non-cryptographic randomness
+* Weak cryptographic algorithms
 * Denial of Service
 * Directory traversal
 * Unsafe serialization

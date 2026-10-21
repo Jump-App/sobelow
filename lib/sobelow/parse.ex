@@ -57,8 +57,6 @@ defmodule Sobelow.Parse do
   defdelegate get_do_block(ast, acc), to: Calls
 
   defdelegate calls_with_args(ast, specifications), to: Calls
-  defdelegate identifier_matches?(name, names), to: Variables
-  defdelegate named_context_calls(ast, names, calls), to: Variables
 
   # Tainted arguments, parameters and source locations.
   defdelegate normalize_finding(finding), to: Variables
