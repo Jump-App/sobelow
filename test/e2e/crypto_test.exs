@@ -35,7 +35,7 @@ defmodule SobelowTest.E2E.CryptoTest do
   test "registers all rules with stable IDs and confidence independent of taint" do
     report = scan("basic", skip: true)
     hashes = findings_for(report, "Crypto.WeakHash")
-    assert Enum.frequencies_by(hashes, & &1["confidence"]) == %{"medium" => 2, "low" => 2}
+    assert Enum.frequencies_by(hashes, & &1["confidence"]) == %{"medium" => 1, "low" => 2}
 
     assert Enum.frequencies_by(findings_for(report, "Crypto.WeakCipher"), & &1["confidence"]) ==
              %{"high" => 1, "low" => 1}
@@ -54,8 +54,8 @@ defmodule SobelowTest.E2E.CryptoTest do
   test "supports ignores, skips, thresholds and all renderers" do
     assert [] = scan("basic", ignored: ["Crypto"]) |> findings_for("Crypto.WeakHash")
     assert [] = scan("basic", ignored: ["Crypto.WeakCipher"]) |> findings_for("Crypto.WeakCipher")
-    assert length(scan("basic") |> findings_for("Crypto.WeakHash")) == 5
-    assert length(scan("basic", skip: true) |> findings_for("Crypto.WeakHash")) == 4
+    assert length(scan("basic") |> findings_for("Crypto.WeakHash")) == 4
+    assert length(scan("basic", skip: true) |> findings_for("Crypto.WeakHash")) == 3
     assert [] = scan("basic", threshold: :high) |> findings_for("Crypto.WeakRandom")
 
     for format <- ["txt", "compact", "flycheck", "github"] do

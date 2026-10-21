@@ -7,10 +7,8 @@ defmodule Sobelow.Crypto.WeakHash do
   Prefer SHA-256 or stronger for security-sensitive digests. Non-security
   checksums and cache keys may legitimately use legacy hashes.
 
-  A fast hash over a password-named value receives medium confidence,
-  regardless of algorithm: use a dedicated password KDF such as Argon2id,
-  scrypt, bcrypt or appropriately configured PBKDF2 for password storage.
-  Naming is a heuristic; preprocessing before a KDF may be intentional.
+  Only the algorithm is inspected, never the names of the values being
+  hashed, so a fast hash used for password storage is not reported.
 
   Legacy hashes receive medium confidence in controllers and low elsewhere.
   HMAC-MD5 receives low confidence as a legacy construction; HMAC-SHA1 is
@@ -20,13 +18,11 @@ defmodule Sobelow.Crypto.WeakHash do
 
   References:
   https://www.rfc-editor.org/rfc/rfc6151
-  https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
 
       $ mix sobelow -i Crypto.WeakHash
   """
   @uid 38
   @finding_type "Crypto.WeakHash: Weak or Inappropriate Hash"
-  @password_names ~w(password passwd pass pw)
   @legacy [:md4, :md5, :sha, :ripemd160]
   @calls [
     {:crypto, :hash, [2]},
@@ -69,13 +65,8 @@ defmodule Sobelow.Crypto.WeakHash do
 
   defp classify(:md5, [data]), do: classify(:hash, [:md5, data])
 
-  defp classify(:hash, [algorithm, data]) do
-    cond do
-      Parse.named_value?(data, @password_names) -> {"fast password hash", :medium}
-      algorithm in @legacy -> {algorithm, :context}
-      true -> nil
-    end
-  end
+  defp classify(:hash, [algorithm, _data]) when algorithm in @legacy,
+    do: {algorithm, :context}
 
   defp classify(:hash_init, [algorithm]) when algorithm in @legacy, do: {algorithm, :context}
   defp classify(:hmac, [:md5 | _]), do: {"HMAC-MD5", :low}
