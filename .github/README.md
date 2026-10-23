@@ -23,3 +23,15 @@ between the fork and the upstream.
   executable terms, but is still reported at high confidence unless `:safe` is
   also passed.
 - Computed options are never assumed safe.
+
+## Merged pending upstream PRs
+
+These upstream pull requests are still open, but their changes are already
+merged into this fork. Once a PR lands upstream, remove it from this list.
+
+| PR | What it changes |
+| --- | --- |
+| [#52](https://github.com/sobelow/sobelow/pull/52) | Adds the `--only` switch, which runs a chosen set of checks or categories, e.g. `mix sobelow --only XSS.Raw,SQL`. It takes the same names as `--ignore`, which still applies on top. Unknown names fail the run. `.sobelow-conf` accepts `only:`. |
+| [#54](https://github.com/sobelow/sobelow/pull/54) | Adds the `DOS.DecodeAtoms` check (see [New checks](#new-checks)). |
+| [#57](https://github.com/sobelow/sobelow/pull/57) | `CI.OS`, `Misc.BinToTerm` and `DOS.BinToAtom` now detect calls made through explicit Erlang imports, such as `import :os, only: [cmd: 1]` followed by `cmd(input)`. |
+| [#59](https://github.com/sobelow/sobelow/pull/59) | `DOS.ListToAtom` now also reports `:erlang.list_to_atom/1`, including piped calls. |

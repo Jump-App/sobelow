@@ -15,6 +15,13 @@
       medium confidence instead of high, changing `--exit high` behavior.
       It also reports Plug's non-executable decoder without proven `:safe`.
       Existing finding IDs, source locations, and skip fingerprints are preserved.
+    * Add `--only` to run a chosen set of checks or categories, e.g.
+      `mix sobelow --only XSS.Raw,SQL`. It takes the same names as `--ignore`,
+      which still applies on top. Unknown names fail the run instead of
+      scanning nothing. `.sobelow-conf` accepts `only:` and `--save-config`
+      records it.
+    * `DOS.ListToAtom` now also reports `:erlang.list_to_atom/1`, including
+      piped calls, matching how `DOS.BinToAtom` covers `:erlang.binary_to_atom`.
 
   * Bug fixes
     * Lockfile dependency advisories now read lockfiles in the format Mix
@@ -22,6 +29,9 @@
       matched and every advisory check passed silently whenever `deps/` was
       absent. Parsing the lockfile also no longer prints a "found quoted
       keyword" warning per dependency.
+    * `CI.OS`, `Misc.BinToTerm` and `DOS.BinToAtom` now detect calls made
+      through explicit Erlang imports, such as `import :os, only: [cmd: 1]`
+      followed by `cmd(input)`.
 
 ## v0.16.0
 
