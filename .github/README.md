@@ -11,6 +11,7 @@ between the fork and the upstream.
 | `DOS.Consult` | `SBLW037` | Dynamic file selection in `:file.consult/1` and `:file.path_consult/2`, which can create atoms from untrusted term files. Controller params get medium confidence, other dynamic paths low. |
 | `Crypto.WeakHash` | `SBLW038` | Legacy hash algorithms (MD4, MD5, SHA-1, RIPEMD-160) in `:crypto` hash calls and `:erlang.md5/1`: medium confidence in controllers, low elsewhere. HMAC-MD5 is reported at low. Only literal algorithms are inspected, never the names of the values being hashed, so a fast hash used for password storage is not reported. |
 | `Crypto.WeakCipher` | `SBLW039` | Weak ciphers passed to `:crypto` encryption APIs. DES, 3DES, RC2, RC4, Blowfish and ECB modes get high confidence. Unauthenticated AES modes (CBC, CTR, CFB, OFB) and raw ChaCha20 get low. |
+| `RCE.File` | `SBLW041` | Dynamic file selection in `:file.eval/1,2`, `:file.script/1,2`, `:file.path_eval/2` and `:file.path_script/2,3`, which execute Erlang expressions from a file. Covers search directories, pipes and captures. Controller params get medium confidence, other dynamic paths and bare captures low. Fully literal paths, and search directories alongside an absolute literal filename, are not reported. |
 
 ## Changed behavior
 
