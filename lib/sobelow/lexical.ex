@@ -10,13 +10,25 @@ defmodule Sobelow.Lexical do
   }
 
   def functions(ast) do
+    analyze(ast).functions
+  end
+
+  def file_calls(ast) do
+    analysis = analyze(ast)
+
+    Enum.reduce(analysis.functions, analysis.calls, fn {_fun, calls}, acc ->
+      Map.merge(acc, calls)
+    end)
+  end
+
+  defp analyze(ast) do
     {_env, acc} =
       walk(ast, %{aliases: %{}, imports: %{}, repo?: false, local_functions: []}, %{
         functions: %{},
         calls: %{}
       })
 
-    acc.functions
+    acc
   end
 
   def with_context(context, fun) do
@@ -31,6 +43,17 @@ defmodule Sobelow.Lexical do
   end
 
   def active?, do: is_map(Process.get(@context_key))
+
+  # Kernel sigils are implicitly imported unless a local definition or an
+  # explicit import selection establishes a different owner.
+  def kernel_call?({name, _, args} = node) when is_atom(name) and is_list(args) do
+    case resolution(node) do
+      %{imports: _} = env -> not shadowed?(env, [:Kernel], {name, length(args)})
+      _ -> true
+    end
+  end
+
+  def kernel_call?(_), do: false
 
   def index_inline(ast, sigil) do
     case resolution(sigil) do
@@ -76,6 +99,16 @@ defmodule Sobelow.Lexical do
 
       _ ->
         is_atom(target) and target not in [:SQL, :Repo]
+    end
+  end
+
+  def erlang_imported?({name, _, args} = node, module, extra \\ 0) when is_atom(module) do
+    case resolution(node) do
+      %{imports: imports} ->
+        imported?(Map.get(imports, module), {name, length(args || []) + extra})
+
+      _ ->
+        false
     end
   end
 
@@ -238,7 +271,7 @@ defmodule Sobelow.Lexical do
   end
 
   defp walk({:import, _, [module | options]}, env, acc) do
-    module = module_name(module, env)
+    module = import_module(module, env)
     options = List.flatten(options)
     previous = Map.get(env.imports, module, {:except, []})
 
@@ -261,6 +294,20 @@ defmodule Sobelow.Lexical do
     # The string's AST is parsed later, after source locations and assigns have
     # been normalized. Retain this sigil's scope for indexing those new nodes.
     {env, put_call(acc, node, env)}
+  end
+
+  # A pipe into an unparenthesized bare function has variable-shaped AST.
+  # Index it as a call in this scope without rewriting the reported node.
+  defp walk({:|>, _, [value, {name, _, nil} = call]}, env, acc) when is_atom(name) do
+    {_inner, acc} = walk(value, env, acc)
+
+    resolution = %{
+      imports: env.imports,
+      repo?: env.repo?,
+      local_functions: Map.get(env, :local_functions, [])
+    }
+
+    {env, put_call(acc, call, resolution)}
   end
 
   defp walk({{:., _, [module, _]}, _, args} = node, env, acc) do
@@ -357,6 +404,12 @@ defmodule Sobelow.Lexical do
     do: Map.get(env.aliases, first, [first]) ++ rest
 
   defp module_name(_, _env), do: nil
+
+  # Erlang modules are bare atoms and need special handling
+  defp import_module(module, _env) when is_atom(module) and module not in [nil, true, false],
+    do: module
+
+  defp import_module(module, env), do: module_name(module, env)
 
   defp alias_entries({{:., _, [prefix, :{}]}, _, entries}, env) do
     case module_name(prefix, env) do

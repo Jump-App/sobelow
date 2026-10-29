@@ -103,6 +103,7 @@ defmodule Sobelow do
       exit: get_env(:exit_on),
       format: get_env(:format),
       ignore: get_env(:ignored),
+      only: get_env(:only) || [],
       ignore_files: relative_ignored_files(),
       include_mix_tasks: get_env(:include_mix_tasks),
       include_scripts: get_env(:include_scripts),
@@ -192,6 +193,7 @@ defmodule Sobelow do
       "RCE.EEx" -> Sobelow.RCE.EEx
       "RCE.CodeModule" -> Sobelow.RCE.CodeModule
       "RCE.File" -> Sobelow.RCE.File
+      "RCE.Compile" -> Sobelow.RCE.Compile
       "Config" -> Sobelow.Config
       "Config.CSRF" -> Sobelow.Config.CSRF
       "Config.CSRFRoute" -> Sobelow.Config.CSRFRoute
@@ -202,6 +204,7 @@ defmodule Sobelow do
       "Config.HSTS" -> Sobelow.Config.HSTS
       "Config.CSWH" -> Sobelow.Config.CSWH
       "Config.TLSVerify" -> Sobelow.Config.TLSVerify
+      "Config.WeakTLS" -> Sobelow.Config.WeakTLS
       "Vuln" -> Sobelow.Vuln
       "Vuln.CookieRCE" -> Sobelow.Vuln.CookieRCE
       # Keep the old rule name accepted for ignores and skips.
@@ -221,18 +224,44 @@ defmodule Sobelow do
       "Crypto" -> Sobelow.Crypto
       "Crypto.WeakHash" -> Sobelow.Crypto.WeakHash
       "Crypto.WeakCipher" -> Sobelow.Crypto.WeakCipher
+      "Crypto.WeakSignature" -> Sobelow.Crypto.WeakSignature
       "DOS" -> Sobelow.DOS
       "DOS.StringToAtom" -> Sobelow.DOS.StringToAtom
       "DOS.ListToAtom" -> Sobelow.DOS.ListToAtom
       "DOS.BinToAtom" -> Sobelow.DOS.BinToAtom
       "DOS.DecodeAtoms" -> Sobelow.DOS.DecodeAtoms
       "DOS.Consult" -> Sobelow.DOS.Consult
+      "DOS.ModuleConcat" -> Sobelow.DOS.ModuleConcat
       _ -> nil
     end
   end
 
   def get_ignored do
-    Sobelow.Scan.ignored(fn -> get_env(:ignored) |> Enum.map(&get_mod/1) end)
+    Sobelow.Scan.ignored(&ignored_modules/0)
+  end
+
+  @doc false
+  # Every module a scan should skip. `--only` is applied by ignoring whatever it
+  # does not select, so categories and checks keep a single filtering path.
+  def ignored_modules do
+    ignored = Enum.map(get_env(:ignored) || [], &get_mod/1)
+
+    case Enum.map(get_env(:only) || [], &get_mod/1) do
+      [] -> ignored
+      only -> ignored ++ Enum.flat_map(@submodules, &unselected(&1, only))
+    end
+  end
+
+  # A selected category keeps all of its checks; a selected check also keeps its
+  # category, which would otherwise be dropped before its checks run.
+  defp unselected(category, only) do
+    checks = category.finding_modules()
+
+    cond do
+      category in only -> []
+      Enum.any?(checks, &(&1 in only)) -> checks -- only
+      true -> [category | checks]
+    end
   end
 
   @doc false

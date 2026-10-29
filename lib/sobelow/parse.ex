@@ -58,7 +58,15 @@ defmodule Sobelow.Parse do
 
   defdelegate calls_with_args(ast, specifications), to: Calls
 
+  defdelegate tls_option_calls(ast, matcher, skipped_functions \\ MapSet.new()),
+    to: Sobelow.Parse.TLSOptions,
+    as: :calls
+
   defdelegate file_selection_findings(fun, specifications),
+    to: Sobelow.Parse.FileSelection,
+    as: :findings
+
+  defdelegate file_selection_findings(fun, specifications, module),
     to: Sobelow.Parse.FileSelection,
     as: :findings
 
@@ -66,6 +74,8 @@ defmodule Sobelow.Parse do
   defdelegate normalize_finding(finding), to: Variables
   defdelegate extract_opts(ast), to: Variables
   defdelegate extract_opts(ast, idx), to: Variables
+  defdelegate dynamic_vars(value), to: Variables
+  defdelegate atom_sigil_findings(fun), to: Variables
   defdelegate get_fun_declaration(ast), to: Variables
   defdelegate get_pipe_val(ast, pipe_fun), to: Variables
   defdelegate get_pipe_val(ast, acc, pipe_fun), to: Variables

@@ -13,8 +13,8 @@ defmodule Sobelow.Parse.Calls do
       Enum.flat_map(specifications, fn {module, name, arities} ->
         calls =
           if is_atom(module),
-            do: get_erlang_aliased_funs_of_type(ast, name, module),
-            else: get_funs(ast, name, module)
+            do: erlang_calls_with_args(ast, name, module),
+            else: elixir_calls_with_args(ast, name, module)
 
         calls |> Enum.uniq() |> Enum.map(&{&1, name, arities})
       end)
@@ -22,41 +22,90 @@ defmodule Sobelow.Parse.Calls do
     if calls == [], do: [], else: effective_calls(ast, calls)
   end
 
+  defp erlang_calls_with_args(ast, name, module) do
+    qualified = get_erlang_aliased_funs_of_type(ast, name, module)
+    qualified ++ imported_calls(ast, name, &Sobelow.Lexical.erlang_imported?(&1, module, &2))
+  end
+
+  defp elixir_calls_with_args(ast, name, module) do
+    if Sobelow.Lexical.active?() and module != nil do
+      target =
+        case module do
+          {:required, target} -> target
+          target -> target
+        end
+
+      get_aliased_funs_of_type(ast, name, target) ++
+        imported_calls(ast, name, &Sobelow.Lexical.unqualified?(&1, target, &2))
+    else
+      legacy_funs(ast, name, module)
+    end
+  end
+
+  defp imported_calls(ast, name, resolver) do
+    if Sobelow.Lexical.active?() do
+      pipes = pipe_args(ast)
+      captures = original_captures(ast)
+
+      ast
+      |> get_funs_of_type(name)
+      |> Enum.filter(fn call ->
+        extra = if Map.has_key?(pipes, call), do: 1, else: 0
+        extra = if zero_arity_capture?(Map.get(captures, call)), do: extra - 1, else: extra
+        resolver.(call, extra)
+      end)
+    else
+      []
+    end
+  end
+
+  defp pipe_args(ast) do
+    Sobelow.FunctionAnalysis.fetch(ast, :pipe_args, fn ->
+      Map.new(get_funs_of_type(ast, :|>), fn {:|>, _, [value, call]} -> {call, value} end)
+    end)
+  end
+
   # Pipes and captures are shared by every caller scanning the same function.
   defp effective_calls(ast, calls) do
-    pipes =
-      Sobelow.FunctionAnalysis.fetch(ast, :pipe_args, fn ->
-        Map.new(get_funs_of_type(ast, :|>), fn {:|>, _, [value, call]} -> {call, value} end)
-      end)
+    pipes = pipe_args(ast)
 
-    captures =
-      Sobelow.FunctionAnalysis.fetch(ast, :original_captures, fn -> original_captures(ast) end)
+    captures = original_captures(ast)
 
     Enum.flat_map(calls, fn {{_, _, args} = call, name, arities} ->
+      original = Map.get(captures, call, call)
+
+      # The legacy capture helper synthesizes one placeholder even for /0.
+      # Effective arguments must retain the declared arity for new callers.
+      args = if zero_arity_capture?(original), do: [], else: args
+
       args =
         case Map.fetch(pipes, call) do
-          {:ok, value} -> [value | args]
+          {:ok, value} -> [value | args || []]
           :error -> args
         end
 
       if is_list(args) and length(args) in arities,
-        do: [{Map.get(captures, call, call), name, args}],
+        do: [{original, name, args}],
         else: []
     end)
   end
 
   defp original_captures(ast) do
-    {_, captures} =
-      Macro.prewalk(ast, %{}, fn
-        {:&, _, [{:/, _, [{fun, meta, _}, arity]}]} = node, captures ->
-          {node, Map.put(captures, create_fun_cap(fun, meta, arity), node)}
+    Sobelow.FunctionAnalysis.fetch(ast, :original_captures, fn ->
+      {_, captures} =
+        Macro.prewalk(ast, %{}, fn
+          {:&, _, [{:/, _, [{fun, meta, _}, arity]}]} = node, captures ->
+            {node, Map.put(captures, create_fun_cap(fun, meta, arity), node)}
 
-        node, captures ->
-          {node, captures}
-      end)
+          node, captures ->
+            {node, captures}
+        end)
 
-    captures
+      captures
+    end)
   end
+
+  defp zero_arity_capture?(node), do: match?({:&, _, [{:/, _, [_, 0]}]}, node)
 
   def get_fun_vars_and_meta(fun, idx, type, module) do
     {params, {fun_name, line_no}} = get_fun_declaration(fun)
@@ -78,10 +127,20 @@ defmodule Sobelow.Parse.Calls do
     pipevars = get_pipefuns_vars(pipefuns, fun, idx)
 
     vars =
-      (get_erlang_aliased_funs_of_type(fun, type, module) -- pipefuns)
+      ((get_erlang_aliased_funs_of_type(fun, type, module) ++
+          get_erlang_imported_funs(fun, type, module)) -- pipefuns)
       |> get_funs_vars(idx, type, module)
 
     {vars ++ pipevars, params, {fun_name, line_no}}
+  end
+
+  defp get_erlang_imported_funs(fun, type, module) do
+    if Sobelow.Lexical.active?() do
+      get_funs_of_type(fun, type)
+      |> Enum.filter(&Sobelow.Lexical.erlang_imported?(&1, module))
+    else
+      []
+    end
   end
 
   defp get_funs(fun, type, module) do
@@ -149,8 +208,20 @@ defmodule Sobelow.Parse.Calls do
   def get_erlang_funs_from_pipe(fun, type, module) do
     get_pipe_funs(fun)
     |> Enum.map(fn {_, _, opts} -> Enum.at(opts, 1) end)
-    |> Enum.flat_map(&get_piped_erlang_aliased_funs_of_type(&1, type, module))
+    |> Enum.flat_map(fn node ->
+      get_piped_erlang_aliased_funs_of_type(node, type, module) ++
+        get_piped_erlang_imported_funs(node, type, module)
+    end)
     |> Enum.uniq()
+  end
+
+  defp get_piped_erlang_imported_funs(node, type, module) do
+    if Sobelow.Lexical.active?() do
+      get_piped_funs_of_type(node, type)
+      |> Enum.filter(&Sobelow.Lexical.erlang_imported?(&1, module, 1))
+    else
+      []
+    end
   end
 
   defp get_funs_vars(funs, idx, _type, _module) do

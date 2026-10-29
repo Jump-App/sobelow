@@ -1,14 +1,14 @@
 # Changelog
 
-## Unreleased
+## v0.18.0
 
   * Enhancements
     * Add the Crypto category with WeakHash and WeakCipher checks for literal
-      algorithm choices.
-    * Add `DOS.DecodeAtoms` for dynamic input decoded with atom-creating options
-      in Jason, Poison, and YamlElixir string readers.
+      algorithm choices, including Erlang's streaming MD5 initializer.
     * Add `Config.TLSVerify` to report disabled TLS certificate verification
-      in scanned source and production configuration.
+      in scanned source and production configuration, including both Hackney
+      insecure option forms. Server and unknown SSL roles receive low confidence.
+      TLS skip fingerprints include the original call AST.
     * Add `DOS.Consult` for dynamic file selection in `:file.consult/1` and
       `:file.path_consult/2`, which can create atoms from untrusted term files.
     * `Misc.BinToTerm` reports Erlang calls with explicit `:safe` options at
@@ -17,13 +17,62 @@
       Existing finding IDs, source locations, and skip fingerprints are preserved.
     * Add RCE.File for dynamic file selection in Erlang eval and script APIs,
       including search paths, pipes and captures.
+    * The new file-selection and cryptography checks resolve explicit Erlang
+      imports, including pipes, captures and import arity restrictions.
+    * Add `DOS.ModuleConcat` for dynamic module-name atom creation through
+      `Module.concat/1,2`, including aliases, imports, pipes and captures.
+    * Extend `DOS.BinToAtom` to interpolated atom word sigils (`~w(...)a`).
+      Existing atom-interpolation findings, IDs and fingerprints are preserved.
+    * Add `RCE.Compile` for dynamic source, ASTs and file selection in
+      `Code.compile_string`, `compile_quoted`, `compile_file` and `require_file`.
+    * Add `Crypto.WeakSignature` for explicit MD5 and SHA-1 digest selections
+      in Erlang crypto and public-key signature APIs.
+    * Add `Config.WeakTLS` for explicit legacy SSL, TLS and DTLS protocol
+      selections, sharing source discovery, skips and TLS option parsing with
+      `Config.TLSVerify` without changing existing TLS finding fingerprints.
 
   * Bug fixes
+    * Retain imported sinks in pipes without parentheses and parameter labels
+      inside constructed ASTs. Qualified Kernel atom-word sigils are detected.
+      These patterns can produce new findings; existing locations and skip
+      fingerprints are unchanged.
+    * TLS checks resolve explicit SSL and Hackney imports within their scope,
+      retaining low confidence for imported SSL server calls. Literal TLS
+      options and weak versions in cons lists and concatenations are retained.
+
+## v0.17.0
+
+  * Enhancements
+    * `DOS.ListToAtom` now also reports `:erlang.list_to_atom/1`, including
+      piped calls, matching how `DOS.BinToAtom` covers `:erlang.binary_to_atom`.
+    * Add `--only` to run a chosen set of checks or categories, e.g.
+      `mix sobelow --only XSS.Raw,SQL`. It takes the same names as `--ignore`,
+      which still applies on top. Unknown names fail the run instead of
+      scanning nothing. `.sobelow-conf` accepts `only:` and `--save-config`
+      records it.
+    * Add `DOS.DecodeAtoms` for dynamic input decoded with atom-creating options
+      in Jason, Poison, and YamlElixir string readers.
+
+  * Bug fixes
+    * `XSS.SendResp` recognizes literal attachment headers on the same response
+      connection for PDF and XML downloads. Uncertain or overridden headers,
+      HTML, and SVG continue to report. Header state no longer leaks between
+      conditional branches; this can expose previously missed findings.
+      Existing finding locations and skip fingerprints remain unchanged. (#55)
+    * Checks now retain tainted variables in interpolated string sigils and
+      piped capture arguments such as &1. These patterns can produce new
+      findings; existing call locations and skip fingerprints are unchanged.
+    * Unrelated application-level config no longer causes Config.HTTPS to
+      report a secure endpoint as missing HTTPS. Explicit app-level transport
+      settings and separate endpoint checks remain supported. (#56)
     * Lockfile dependency advisories now read lockfiles in the format Mix
       writes. Mix's `"plug": {...}` keys parse as atoms, so the lookup never
       matched and every advisory check passed silently whenever `deps/` was
       absent. Parsing the lockfile also no longer prints a "found quoted
       keyword" warning per dependency.
+    * `CI.OS`, `Misc.BinToTerm` and `DOS.BinToAtom` now detect calls made
+      through explicit Erlang imports, such as `import :os, only: [cmd: 1]`
+      followed by `cmd(input)`.
 
 ## v0.16.0
 

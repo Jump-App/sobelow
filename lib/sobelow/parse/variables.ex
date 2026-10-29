@@ -1,6 +1,8 @@
 defmodule Sobelow.Parse.Variables do
   @moduledoc false
 
+  alias Sobelow.Parse.Calls
+
   @operators [
     :+,
     :-,
@@ -52,8 +54,67 @@ defmodule Sobelow.Parse.Variables do
 
   defp atom_to_string(atom) when is_atom(atom), do: Atom.to_string(atom)
 
+  # New checks can retain an unknown value even when legacy extraction has no
+  # variable label (for example a module attribute). Never rewrite finding ASTs.
+  def dynamic_vars(value) do
+    normalized =
+      Macro.prewalk(value, fn
+        # Older Macro.quoted_literal?/1 versions do not classify __MODULE__
+        # as a literal. Its value is fixed at compilation on every release.
+        {:__MODULE__, _, context} when is_atom(context) or context == [] ->
+          :__sobelow_current_module__
+
+        {sigil, _, [{:<<>>, _, [literal]}, []]}
+        when sigil in [:sigil_s, :sigil_S, :sigil_c, :sigil_C] and is_binary(literal) ->
+          literal
+
+        {sigil, _, [{:<<>>, _, _} = contents, []]}
+        when sigil in [:sigil_s, :sigil_c] ->
+          contents
+
+        {{:., _, [List, :to_charlist]}, meta, [contents]} when is_list(contents) ->
+          {:<<>>, meta, contents}
+
+        node ->
+          node
+      end)
+
+    if Macro.quoted_literal?(normalized) do
+      []
+    else
+      variables = dynamic_labels(normalized)
+
+      case Enum.uniq(variables) do
+        [] -> ["dynamic value"]
+        variables -> variables
+      end
+    end
+  end
+
+  defp dynamic_labels(values) when is_list(values), do: Enum.flat_map(values, &dynamic_vars/1)
+
+  defp dynamic_labels({:{}, _, values}), do: dynamic_labels(values)
+  defp dynamic_labels({:%{}, _, values}), do: dynamic_labels(values)
+  defp dynamic_labels({key, value}), do: dynamic_labels([key, value])
+  defp dynamic_labels(value), do: value |> parse_opts() |> List.wrap() |> List.flatten()
+
+  def atom_sigil_findings(fun) do
+    bare =
+      fun
+      |> Calls.get_funs_of_type(:sigil_w)
+      |> Enum.filter(&Sobelow.Lexical.kernel_call?/1)
+
+    qualified = Calls.get_aliased_funs_of_type(fun, :sigil_w, [:Kernel])
+
+    for {_, _, [{:<<>>, _, parts} = contents, [?a]]} = call <- Enum.uniq(bare ++ qualified),
+        Enum.any?(parts, &(not is_binary(&1))),
+        do: {call, dynamic_vars(contents)}
+  end
+
   def extract_opts({:send_resp, _, nil}), do: []
   def extract_opts({:send_resp, _, opts}), do: parse_opts(List.last(opts))
+
+  def extract_opts({:&, _, [i]} = cap) when is_integer(i), do: parse_opts(cap)
 
   def extract_opts({{:., _, _}, _, _opts} = fun) do
     parse_opts(fun)
@@ -119,7 +180,10 @@ defmodule Sobelow.Parse.Variables do
     Enum.map(opts, &parse_opts/1)
   end
 
-  # Sigils aren't ordinary function calls.
+  defp parse_opts({:sigil_s, _, [{:<<>>, _, _} = contents, _modifiers]}),
+    do: parse_opts(contents)
+
+  # Other sigils aren't ordinary function calls.
   defp parse_opts({fun, _, _}) when fun in [:sigil_s, :sigil_e], do: []
   defp parse_opts({fun, _, opts}) when is_list(opts), do: fun
   defp parse_opts(opts) when is_tuple(opts), do: parse_opts(Tuple.to_list(opts))
