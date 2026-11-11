@@ -155,6 +155,16 @@ defmodule Sobelow.Parse.Variables do
     "conn.params"
   end
 
+  # Follow chained brackets before extracting a label; otherwise the inner
+  # Access.get call leaks its dot AST instead of the original input variable.
+  defp parse_opts({{:., _, [Access, :get]}, _, [{{:., _, [Access, :get]}, _, _} = value | _]}),
+    do: parse_opts(value)
+
+  # A bracket receiver can be a field, remote call or anonymous call. Keep its
+  # complete expression printable, including when nested in interpolation.
+  defp parse_opts({{:., _, [Access, :get]}, _, [{{:., _, _}, _, _} = value | _]}),
+    do: Macro.to_string(value)
+
   defp parse_opts({{:., _, [Access, :get]}, _, [{val, _, _} | _]}), do: val
   defp parse_opts({{:., _, [Access, :get]}, _, [value | _]}), do: parse_opts(value)
 
