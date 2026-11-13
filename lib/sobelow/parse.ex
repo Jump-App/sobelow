@@ -58,6 +58,14 @@ defmodule Sobelow.Parse do
 
   defdelegate calls_with_args(ast, specifications), to: Calls
 
+  defdelegate unescaped_regex_vars(fun, pattern),
+    to: Sobelow.Parse.RegexPatterns,
+    as: :unescaped_vars
+
+  defdelegate compressed_file_findings(fun), to: Sobelow.Parse.CompressedFiles, as: :findings
+
+  defdelegate risky_xml_options?(parser, options), to: Sobelow.Parse.XMLOptions, as: :risky?
+
   defdelegate tls_option_calls(ast, matcher, skipped_functions \\ MapSet.new()),
     to: Sobelow.Parse.TLSOptions,
     as: :calls
@@ -75,6 +83,12 @@ defmodule Sobelow.Parse do
   defdelegate extract_opts(ast), to: Variables
   defdelegate extract_opts(ast, idx), to: Variables
   defdelegate dynamic_vars(value), to: Variables
+  defdelegate binary_input_vars(value), to: Variables
+
+  defdelegate zip_content_callback?(callback),
+    to: Sobelow.Parse.ZipCallbacks,
+    as: :content_callback?
+
   defdelegate atom_sigil_findings(fun), to: Variables
   defdelegate get_fun_declaration(ast), to: Variables
   defdelegate get_pipe_val(ast, pipe_fun), to: Variables

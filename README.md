@@ -22,7 +22,7 @@ security issues:
 * Command injection
 * Code execution
 * Weak cryptographic algorithms
-* Denial of Service
+* Denial of Service and resource exhaustion
 * Directory traversal
 * Unsafe serialization
 
@@ -61,7 +61,7 @@ To use Sobelow, you can add it to your application's dependencies.
 ```elixir
 def deps do
   [
-    {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false, warn_if_outdated: true}
+    {:sobelow, "~> 0.19.0", only: [:dev, :test], runtime: false, warn_if_outdated: true}
   ]
 end
 ```

@@ -22,6 +22,12 @@ defmodule Sobelow.DOS do
           $ mix sobelow -d DOS.DecodeAtoms
           $ mix sobelow -d DOS.Consult
           $ mix sobelow -d DOS.ModuleConcat
+          $ mix sobelow -d DOS.Zip
+          $ mix sobelow -d DOS.Decompression
+          $ mix sobelow -d DOS.Tar
+          $ mix sobelow -d DOS.XML
+          $ mix sobelow -d DOS.CompressedFile
+          $ mix sobelow -d DOS.Regex
 
   Denial of Service checks of all types can be ignored with the
   following command:
@@ -34,7 +40,13 @@ defmodule Sobelow.DOS do
     Sobelow.DOS.BinToAtom,
     Sobelow.DOS.DecodeAtoms,
     Sobelow.DOS.Consult,
-    Sobelow.DOS.ModuleConcat
+    Sobelow.DOS.ModuleConcat,
+    Sobelow.DOS.Zip,
+    Sobelow.DOS.Decompression,
+    Sobelow.DOS.Tar,
+    Sobelow.DOS.XML,
+    Sobelow.DOS.CompressedFile,
+    Sobelow.DOS.Regex
   ]
   use Sobelow.FindingType
 

@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.19.0
+
+New checks and expanded ZIP callback analysis can produce additional findings and
+change confidence-based CI exit results. Existing finding locations and skip
+fingerprints are preserved. The minimum supported Elixir remains 1.12.
+
+  * Enhancements
+    * Add narrow `DOS.Regex` findings for dynamic pattern compilation, omitting
+      direct escaped inputs. Fixed-pattern complexity and matching calls are
+      outside the initial scope; absence of a finding does not imply safety.
+    * Add `DOS.CompressedFile` to connect local compressed-file opens, including
+      piped opens, with full IO reads. Findings point at reads and retain the
+      originating path label. Captured outer handles stop being tracked across
+      open callbacks; callback device tracking remains local.
+    * Add narrow `DOS.XML` findings for explicit entity-expansion and external
+      loading options. Default-only calls are not treated as unsafe or safe;
+      option support is runtime-specific. Bounded XML experiments distinguish
+      entity rejection from unsupported options and verify duplicate precedence.
+    * Extend `DOS.Zip` to inline `:zip.foldl/3` callbacks that directly invoke
+      the entry-content accessor before any rebinding. Metadata-only callbacks
+      are omitted. New findings point at the enclosing fold call; existing
+      locations and skip fingerprints are unchanged.
+    * Clarify compressed ETF and decoded-memory risks in `Misc.BinToTerm` help.
+      Decoder protections, detection boundaries and fingerprints are unchanged.
+    * Add `DOS.Tar` for dynamic Erlang TAR extraction inputs, including compressed
+      and selected-entry extraction. Runtime-specific limits require review.
+    * Add `DOS.Zip` for potentially unbounded extraction through Erlang ZIP APIs.
+      Dynamic archive inputs and handles are reported conservatively; literal
+      inputs, metadata-only operations and archive creation are omitted.
+      Declared-size checks do not suppress findings.
+    * Add `DOS.Decompression` for dynamic input to unbounded zlib decompression
+      APIs. Compression and bounded-output primitives are omitted; input chunking
+      and post-decompression size checks do not suppress findings.
+
 ## v0.18.1
 
   * Bug fixes
@@ -195,7 +229,7 @@
       trips run across the supported matrix. Independent release column captures
       qualify older parsers, and highlighting follows each runtime's printer.
     * Added compatibility coverage for all 70 pre-extraction public function and
-      arity pairs on `Sobelow` and `Sobelow.Parse`, including traversal callbacks
+      arity pairs on `Sobelow` and Sobelow.Parse, including traversal callbacks
       and default arities.
     * Expanded benchmarks to seven workloads and quiet/JSON/SARIF output, with
       complete finding and output comparisons, reduction counts, and separate
@@ -213,7 +247,7 @@
     * Split scan discovery, execution, skip-file persistence, and version checks
       into focused internal modules. Shared AST helpers now live in source,
       metadata, calls, variables, and template modules, with the existing
-      `Sobelow` and `Sobelow.Parse` entry points preserved.
+      `Sobelow` and Sobelow.Parse entry points preserved.
     * Consolidated duplicate matchers and worker setup, reused relative-path
       handling, and shortened stale comments. Updated contributor and usage
       guidance to document the new module boundaries and scan options.
@@ -382,7 +416,7 @@
     * Support for minimum Elixir versions 1.7 - 1.11 (**POTENTIALLY BREAKING** - only applies if you relied on Elixir 1.7 through 1.11, 1.12+ is still supported)
   * Enhancements
     * Added support for multiple variations of `SQL.query()`
-    * Added support for `System.shell' command introduced in Elixir v1.12
+    * Added support for `System.shell` command introduced in Elixir v1.12
     * Ignore runtime config during `Config.HSTS`
     * Updated developer dependencies (`ex_doc` & `credo`)
   * Bug fixes

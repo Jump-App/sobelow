@@ -109,6 +109,12 @@ defmodule Mix.Tasks.Sobelow do
   * DOS.DecodeAtoms
   * DOS.Consult
   * DOS.ModuleConcat
+  * DOS.Zip
+  * DOS.Decompression
+  * DOS.Tar
+  * DOS.XML
+  * DOS.CompressedFile
+  * DOS.Regex
 
   """
   @switches [
